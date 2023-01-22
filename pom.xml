@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>2.7.8</version>
+        <relativePath/> <!-- lookup parent from repository -->
+    </parent>
+    <groupId>com.asyncapi.example</groupId>
+    <artifactId>generate-async-api-pojos</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>generate-async-api-pojos</name>
+    <description>Demo Project on how to use Asyncapi generator docker container</description>
+    <properties>
+        <java.version>19</java.version>
+    </properties>
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.14.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>2.14.0</version>
+        </dependency>
+        <!-- For Bean Validation -->
+        <dependency>
+            <groupId>javax.validation</groupId>
+            <artifactId>validation-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>16</source>
+                    <target>16</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>io.fabric8</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <version>0.33.0</version>
+                <executions>
+                    <execution>
+                        <id>start-db-container</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>start</goal>
+                        </goals>
+                        <configuration>
+                            <logStdout>true</logStdout>
+                            <showLogs>true</showLogs>
+                            <dockerHost>${docker.host}</dockerHost>
+                            <images>
+                                <image>
+                                    <name>asyncapi/generator</name>
+                                    <run>
+                                        <volumes>
+                                            <bind>
+                                                <volume>src/main/resources/asyncapi:/asyncapi</volume>
+                                                <volume>${project.build.directory}:/target</volume>
+                                            </bind>
+                                        </volumes>
+                                        <cmd>
+                                            -o /target/generated-sources/async-api-generated-code /asyncapi/asyncapi.yml
+                                            -p disableEqualsHashCode=true @asyncapi/java-spring-template --force-write
+                                        </cmd>
+                                        <wait>
+                                            <log>Check out your shiny new generated files.</log>
+                                            <time>300000</time>
+                                        </wait>
+                                    </run>
+                                </image>
+                            </images>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>stop-asyn-container</id>
+                        <phase>pre-integration-test</phase>
+                        <goals>
+                            <goal>stop</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <phase>generate-sources</phase>
+                        <configuration>
+                            <target>
+                                <copy todir="${project.build.directory}/generated-sources/async-api">
+                                    <fileset
+                                            dir="${project.build.directory}/generated-sources/async-api-generated-code/src/main/java"
+                                            includes="**/*"/>
+                                </copy>
+                                <delete dir="${project.build.directory}/generated-sources/async-api-generated-code"
+                                        includeemptydirs="true"/>
+                                <delete dir="${project.build.directory}/generated-sources/async-api/com/asyncapi/infrastructure"
+                                        includeemptydirs="true"/>
+                                <delete dir="${project.build.directory}/generated-sources/async-api/com/asyncapi/service"
+                                        includeemptydirs="true"/>
+                                <delete file="${project.build.directory}/generated-sources/async-api/com/asyncapi/Application.java"/>
+                            </target>
+                        </configuration>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.build.directory}/generated-sources/async-api</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <configuration>
+                    <includes>
+                        <include>**/*IT.java</include>
+                    </includes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>windows</id>
+            <activation>
+                <os>
+                    <family>Windows</family>
+                </os>
+            </activation>
+            <properties>
+                <docker.host>http://localhost:2375</docker.host>
+            </properties>
+
+        </profile>
+        <profile>
+            <id>Linux</id>
+            <activation>
+                <os>
+                    <family>Linux</family>
+                </os>
+            </activation>
+            <properties>
+                <docker.host>unix:///var/run/docker.sock</docker.host>
+            </properties>
+        </profile>
+    </profiles>
+</project>

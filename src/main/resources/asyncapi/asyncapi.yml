@@ -1,0 +1,52 @@
+asyncapi: '2.5.0'
+info:
+  title: Example on how to generate POJOs from an asyncapi.yml
+  version: '1.0.0'
+  description: |
+    This will be used for kafka events later on.
+servers:
+  dev:
+    url: kafka:9092
+    protocol: kafka-secure
+    description: Dev Cluster
+defaultContentType: application/json
+channels:
+  EXAMPLE.APP..EVENTS.USER:
+    description: The topic for all User Events to be consumed from.
+    publish:
+      summary: User events can be consumed from this topic.
+      message:
+        $ref: '#/components/messages/User'
+components:
+  messages:
+    User:
+      name: User
+      title: User
+      summary: User
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/User"
+
+  schemas:
+    User:
+      type: object
+      properties:
+        userId:
+          type: string
+        userName:
+          type: string
+        isUserManager:
+          type: boolean
+        dateAdded:
+          type: string
+          format: date
+        employees:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+
+  operationTraits:
+    kafka:
+      bindings:
+        kafka:
+          clientId: example-asyncapi-application
